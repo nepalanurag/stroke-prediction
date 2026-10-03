@@ -1,0 +1,1111 @@
+---
+title: "448_Project_Stroke_Data"
+author: "Anurag Nepal"
+date: "2025-03-16"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+stroke_data = read.csv("healthcare-dataset-stroke-data.csv")
+```
+
+```{r}
+glimpse(stroke_data)
+summary(stroke_data)
+```
+
+BMI should be integer but is there as character.
+```{r}
+stroke_data$bmi=as.double(stroke_data$bmi)
+summary(stroke_data)
+```
+```{r}
+stroke_counts = table(stroke_data$stroke)
+stroke_counts_df = as.data.frame(stroke_counts)
+stroke_counts_df$percentage = stroke_counts_df$Freq / sum(stroke_counts_df$Freq) * 100
+colnames(stroke_counts_df) = c("stroke", "count", "percentage")
+print(stroke_counts_df)
+```
+Data imbalance so may have to augment the data.
+
+```{r}
+na_counts = colSums(is.na(stroke_data))
+na_counts[na_counts > 0]
+```
+```{r}
+stroke_data = stroke_data[stroke_data$gender != "Other", ]
+```
+
+
+```{r}
+categorize_age = function(age) {
+  if (age >= 0 & age <= 1) {
+    return('Infant')
+  } else if (age > 1 & age <= 12) {
+    return('Children')
+  } else if (age > 12 & age < 20) {
+    return('Teenager')
+  } else if (age >= 20 & age <= 39) {
+    return('Adult')
+  } else if (age > 39 & age <= 59) {
+    return('Middle Aged')
+  } else {
+    return('Senior')
+  }
+}
+
+stroke_data$age_group = sapply(stroke_data$age, categorize_age)
+unique(stroke_data$age_group)
+```
+
+```{r}
+avg_bmi_by_group = aggregate(bmi ~ age_group + gender, data = stroke_data, FUN = mean)
+colnames(avg_bmi_by_group) = c("age_group","gender","avg_bmi")
+avg_bmi_by_group
+```
+```{r}
+stroke_data = merge(stroke_data, avg_bmi_by_group, by = c("age_group", "gender"), all.x = TRUE)
+stroke_data$bmi = ifelse(is.na(stroke_data$bmi), stroke_data$avg_bmi, stroke_data$bmi)
+stroke_data$avg_bmi = NULL
+```
+Used the average bmi for  the age group and gender to fill in the bmi NA values.
+
+```{r}
+boxplot(age ~ stroke, data = stroke_data, main = "Age by Stroke Status", col = "skyblue")
+boxplot(avg_glucose_level ~ stroke, data = stroke_data, main = "Glucose Level by Stroke Status", col = "lightgreen")
+boxplot(bmi ~ stroke, data = stroke_data, main = "BMI by Stroke Status", col = "salmon")
+```
+
+
+```{r}
+barplot(sort(table(stroke_data$age_group)), beside = TRUE, main = "Distribution by Age Group",
+        xlab = "Age Group", ylab = "Count", col = c("skyblue", "salmon"),
+        legend = rownames(stroke_data$age_group))
+age_group_stroke = prop.table((table(stroke_data$age_group, stroke_data$stroke)), margin = 1)
+barplot(sort(age_group_stroke[, 2]), col = "skyblue", main = "Stroke Rate by Age Group", ylab = "Stroke Proportion")
+```
+```{r}
+hist(stroke_data$age, main = "Distribution of Age", xlab = "Age", col = "skyblue", breaks = 20, prob = TRUE)
+lines(density(stroke_data$age, na.rm = TRUE), col = "black", lwd = 3)
+legend("topleft", legend = c("Histogram", "Density"), col = c("skyblue", "black"), lwd = 2)
+
+plot(density(stroke_data$age[stroke_data$stroke == 1]), col = "red", main = "Age Distribution by Stroke Status")
+lines(density(stroke_data$age[stroke_data$stroke == 0]), col = "blue")
+legend("topleft", legend = c("No Stroke","Stroke"), fill = c("blue", "red"))
+```
+```{r}
+hist(stroke_data$avg_glucose_level, main = "Distribution of Glucose Level", xlab = "Glucose Level", col = "lightgreen", breaks = 20,prob = TRUE)
+lines(density(stroke_data$avg_glucose_level), col = "black",lwd=3)
+legend("topright", legend = c("Histogram", "Density"), col = c("lightgreen", "black"), lwd = 2)
+plot(density(stroke_data$avg_glucose_level[stroke_data$stroke == 0]), col = "blue", main = "Glucose Level Distribution by Stroke Status")
+lines(density(stroke_data$avg_glucose_level[stroke_data$stroke == 1]), col = "red")
+legend("topright", legend = c("No Stroke","Stroke"), fill = c("blue", "red"))
+```
+```{r}
+hist(stroke_data$bmi, main = "Distribution of BMI", xlab = "BMI", col = "salmon", breaks = 20,prob=TRUE)
+lines(density(stroke_data$bmi), col = "black", main = "BMI Distribution",lwd=3)
+legend("topright", legend = c("Histogram", "Density"), col = c("salmon", "black"), lwd = 2)
+plot(density(stroke_data$bmi[stroke_data$stroke == 1]), col = "red", main = "BMI Distribution by Stroke Status")
+lines(density(stroke_data$bmi[stroke_data$stroke == 0]), col = "blue")
+legend("topright", legend = c("No Stroke","Stroke"), fill = c("blue", "red"))
+```
+
+Stroke likelihood increases with lower glucose concentration.
+```{r}
+barplot(table(stroke_data$gender), main = "Gender Distribution", col = "skyblue")
+gender_stroke = prop.table(table(stroke_data$gender, stroke_data$stroke), margin = 1)
+barplot(gender_stroke[, 2], col = "skyblue", main = "Stroke Rate by Gender", ylab = "Stroke Proportion")
+```
+
+```{r}
+barplot(table(stroke_data$smoking_status), main = "Smoking Status Distribution", col = "orange")
+smoke_stroke = prop.table(table(stroke_data$smoking_status, stroke_data$stroke), margin = 1)
+barplot(smoke_stroke[, 2], col = "skyblue", main = "Stroke Rate by Smoking Status", ylab = "Stroke Proportion")
+```
+Former smokers have higher stroke rates.
+```{r}
+barplot(table(stroke_data$heart_disease),names.arg = c("No Heart Disease", "Heart Disease"), main = "Heart Disease Distribution", col = "salmon")
+hd_stroke = prop.table(table(stroke_data$heart_disease, stroke_data$stroke), margin = 1)
+barplot(hd_stroke[, 2], names.arg = c("No Heart Disease", "Heart Disease"), col = "pink", main = "Stroke Rate by Heart Disease")
+```
+Heart disease increases stroke risk.
+
+
+```{r}
+stroke_data %>%
+  group_by(work_type) %>%
+  summarise(hypertension_rate = mean(hypertension)) %>%
+  ggplot(aes(work_type, hypertension_rate)) + 
+  geom_col(fill = "orange") + 
+  labs(title = "Hypertension Rate by Work Type")
+```
+
+```{r}
+stroke_data %>%
+  group_by(ever_married) %>%
+  summarise(hypertension_rate = mean(hypertension)) %>%
+  ggplot(aes(ever_married, hypertension_rate)) + 
+  geom_col(fill = "lightblue") + 
+  labs(title = "Hypertension Rate by Marriage Status")
+```
+```{r}
+stroke_data %>%
+  group_by(Residence_type) %>%
+  summarise(hypertension_rate = mean(hypertension)) %>%
+  ggplot(aes(Residence_type, hypertension_rate)) + 
+  geom_col(fill = "lightblue") + 
+  labs(title = "Hypertension Rate by Residence Type")
+```
+
+```{r}
+barplot(table(stroke_data$hypertension),names.arg = c("No Hypertension", "Hypertension"), main = "Hypertension Distribution", col = "lightgreen")
+hypertension_stroke = prop.table(table(stroke_data$hypertension, stroke_data$stroke), margin = 1)
+barplot(hypertension_stroke[, 2], names.arg = c("No Hypertension", "Hypertension"), col = "skyblue", main = "Stroke Rate by Hypertension")
+```
+```{r}
+barplot(table(stroke_data$work_type), main = "Work Type Distribution", col = "orange")
+res_stroke = prop.table(table(stroke_data$work_type, stroke_data$stroke), margin = 1)
+barplot(res_stroke[, 2], col = "salmon", main = "Stroke Rate by Work Type")
+```
+```{r}
+barplot(table(stroke_data$Residence_type), main = "Residence Distribution", col = "orange")
+res_stroke = prop.table(table(stroke_data$Residence_type, stroke_data$stroke), margin = 1)
+barplot(res_stroke[, 2], names.arg = c("Rural", "Urban"), col = "salmon", main = "Stroke Rate by Residence")
+```
+```{r}
+barplot(table(stroke_data$ever_married),names.arg = c("Never Married", "Married"), main = " Marital Status Distribution", col = "lightblue")
+married_stroke = prop.table(table(stroke_data$ever_married, stroke_data$stroke), margin = 1)
+barplot(married_stroke[, 2], names.arg = c("Never Married", "Married"), col = "purple", main = "Stroke Rate by Marital Status")
+```
+
+```{r}
+numerical_vars = stroke_data[, c("age", "avg_glucose_level", "bmi")]
+numerical_vars$stroke = stroke_data$stroke
+cor_matrix = cor(numerical_vars, use = "complete.obs")
+print(cor_matrix)
+```
+
+
+
+```{r}
+library(caret)
+library(pROC)
+```
+
+```{r}
+stroke_data = stroke_data %>%
+  select(-id, -age_group,-Residence_type,-gender) %>%
+  mutate(
+    ever_married = as.factor(ever_married),
+    work_type = as.factor(work_type),
+    smoking_status = as.factor(smoking_status),
+    hypertension = as.factor(hypertension),
+    heart_disease = as.factor(heart_disease),
+    stroke = as.factor(stroke)
+  )
+stroke_data = stroke_data %>%
+  mutate(stroke = factor(stroke, levels = c(1, 0), labels = c("YES", "NO")))
+```
+
+
+```{r}
+set.seed(123)  
+trainIndex = createDataPartition(stroke_data$stroke, p = 0.7, list = FALSE)
+train_data = stroke_data[trainIndex, ]
+test_data = stroke_data[-trainIndex, ]
+prop.table(table(train_data$stroke))
+prop.table(table(test_data$stroke))
+```
+
+## Define Training Controls
+
+We'll define two `trainControl` objects for 5-fold cross-validation: one without SMOTE and one with SMOTE for class balancing. We'll use these across all models and scenarios.
+
+```{r train-controls}
+# Without SMOTE
+ctrl_base = trainControl(
+  method = "cv",
+  number = 5,
+  classProbs = TRUE,           
+  summaryFunction = twoClassSummary,  
+)
+
+ctrl_smote = trainControl(
+  method = "cv",
+  number = 5,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  savePredictions = "final",
+  sampling = "smote"           
+)
+```
+
+
+For each model (Logistic Regression, LDA, QDA, KNN), we'll train under four scenarios:
+1. **No SMOTE, No PCA**
+2. **SMOTE, No PCA**
+3. **No SMOTE, PCA**
+4. **SMOTE, PCA**
+
+
+### Logistic Regression
+
+```{r}
+# No SMOTE, No PCA
+set.seed(123)
+logit_no_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "glm", 
+  family = "binomial",
+  trControl = ctrl_base, 
+  metric = "ROC"
+)
+logit_pred_no_smote_no_pca_prob = predict(logit_no_smote_no_pca, newdata = test_data, type = "prob")
+logit_pred_no_smote_no_pca_class = predict(logit_no_smote_no_pca, newdata = test_data, type = "raw")
+roc_logit_no_smote_no_pca = roc(test_data$stroke, logit_pred_no_smote_no_pca_prob[,"YES"])
+acc_logit_no_smote_no_pca = confusionMatrix(logit_pred_no_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# SMOTE, No PCA
+set.seed(123)
+logit_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "glm", 
+  family = "binomial",
+  trControl = ctrl_smote, 
+  metric = "ROC"
+)
+logit_pred_smote_no_pca_prob = predict(logit_smote_no_pca, newdata = test_data, type = "prob")
+logit_pred_smote_no_pca_class = predict(logit_smote_no_pca, newdata = test_data, type = "raw")
+roc_logit_smote_no_pca = roc(test_data$stroke, logit_pred_smote_no_pca_prob[,"YES"])
+acc_logit_smote_no_pca = confusionMatrix(logit_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# No SMOTE, PCA
+set.seed(123)
+logit_no_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "glm", 
+  family = "binomial",
+  trControl = ctrl_base, 
+  preProcess = c("center", "scale", "pca"),  # PCA with centering and scaling
+  metric = "ROC"
+)
+logit_pred_no_smote_pca_prob = predict(logit_no_smote_pca, newdata = test_data, type = "prob")
+logit_pred_no_smote_pca_class = predict(logit_no_smote_pca, newdata = test_data, type = "raw")
+roc_logit_no_smote_pca = roc(test_data$stroke, logit_pred_no_smote_pca_prob[,"YES"])
+acc_logit_no_smote_pca = confusionMatrix(logit_pred_no_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, PCA
+set.seed(123)
+logit_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "glm", 
+  family = "binomial",
+  trControl = ctrl_smote, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+logit_pred_smote_pca_prob = predict(logit_smote_pca, newdata = test_data, type = "prob")
+roc_logit_smote_pca = roc(test_data$stroke, logit_pred_smote_pca_prob[,"YES"])
+logit_pred_smote_pca_class = predict(logit_smote_pca, newdata = test_data, type = "raw")
+acc_logit_smote_pca = confusionMatrix(logit_pred_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# Plot ROC curves
+plot(roc_logit_no_smote_no_pca, col = "blue", main = "ROC for Logistic Regression")
+lines(roc_logit_smote_no_pca, col = "red")
+lines(roc_logit_no_smote_pca, col = "green")
+lines(roc_logit_smote_pca, col = "purple")
+legend("bottomright", 
+       legend = c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA"), 
+       col = c("blue", "red", "green", "purple"), 
+       lty = 1)
+```
+
+```{r}
+### Linear Discriminant Analysis (LDA)
+# No SMOTE, No PCA
+set.seed(123)
+lda_no_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "lda",
+  trControl = ctrl_base, 
+  metric = "ROC"
+)
+lda_pred_no_smote_no_pca = predict(lda_no_smote_no_pca, newdata = test_data, type = "prob")
+roc_lda_no_smote_no_pca = roc(test_data$stroke, lda_pred_no_smote_no_pca[, "YES"])
+lda_pred_no_smote_no_pca_class = predict(lda_no_smote_no_pca, newdata = test_data, type = "raw")
+acc_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# SMOTE, No PCA
+set.seed(123)
+lda_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "lda",
+  trControl = ctrl_smote, 
+  metric = "ROC"
+)
+lda_pred_smote_no_pca = predict(lda_smote_no_pca, newdata = test_data, type = "prob")
+roc_lda_smote_no_pca = roc(test_data$stroke, lda_pred_smote_no_pca[, "YES"])
+lda_pred_smote_no_pca_class = predict(lda_smote_no_pca, newdata = test_data, type = "raw")
+acc_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# No SMOTE, PCA
+set.seed(123)
+lda_no_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "lda",
+  trControl = ctrl_base, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+lda_pred_no_smote_pca = predict(lda_no_smote_pca, newdata = test_data, type = "prob")
+roc_lda_no_smote_pca = roc(test_data$stroke, lda_pred_no_smote_pca[, "YES"])
+lda_pred_no_smote_pca_class = predict(lda_no_smote_pca, newdata = test_data, type = "raw")
+acc_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# SMOTE, PCA
+set.seed(123)
+lda_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "lda",
+  trControl = ctrl_smote, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+lda_pred_smote_pca = predict(lda_smote_pca, newdata = test_data, type = "prob")
+roc_lda_smote_pca = roc(test_data$stroke, lda_pred_smote_pca[, "YES"])
+lda_pred_smote_pca_class = predict(lda_smote_pca, newdata = test_data, type = "raw")
+acc_lda_smote_pca = confusionMatrix(lda_pred_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+# Plot ROC curves
+plot(roc_lda_no_smote_no_pca, col = "blue", main = "ROC for LDA")
+lines(roc_lda_smote_no_pca, col = "red")
+lines(roc_lda_no_smote_pca, col = "green")
+lines(roc_lda_smote_pca, col = "purple")
+legend("bottomright", 
+       legend = c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA"), 
+       col = c("blue", "red", "green", "purple"), 
+       lty = 1)
+```
+
+```{r}
+### Quadratic Discriminant Analysis (QDA)
+
+# No SMOTE, No PCA
+set.seed(123)
+qda_no_smote_no_pca = tryCatch({
+  train(
+    stroke ~ ., 
+    data = train_data, 
+    method = "qda",
+    trControl = ctrl_base, 
+    metric = "ROC"
+  )
+}, error = function(e) NULL)
+qda_pred_no_smote_no_pca = if (!is.null(qda_no_smote_no_pca)) {
+  predict(qda_no_smote_no_pca, newdata = test_data, type = "prob")
+} else {
+  NULL
+}
+roc_qda_no_smote_no_pca = if (!is.null(qda_pred_no_smote_no_pca)) {
+  roc(test_data$stroke, qda_pred_no_smote_no_pca[, "YES"])
+} else {
+  NULL
+}
+qda_pred_no_smote_no_pca_class = if (!is.null(qda_no_smote_no_pca)) {
+  predict(qda_no_smote_no_pca, newdata = test_data, type = "raw")
+} else {
+  NULL
+}
+acc_qda_no_smote_no_pca = if (!is.null(qda_pred_no_smote_no_pca_class)) {
+  confusionMatrix(qda_pred_no_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+} else {
+  NA
+}
+
+# SMOTE, No PCA
+set.seed(123)
+qda_smote_no_pca = tryCatch({
+  train(
+    stroke ~ ., 
+    data = train_data, 
+    method = "qda",
+    trControl = ctrl_smote, 
+    metric = "ROC"
+  )
+}, error = function(e) NULL)
+qda_pred_smote_no_pca = if (!is.null(qda_smote_no_pca)) {
+  predict(qda_smote_no_pca, newdata = test_data, type = "prob")
+} else {
+  NULL
+}
+roc_qda_smote_no_pca = if (!is.null(qda_pred_smote_no_pca)) {
+  roc(test_data$stroke, qda_pred_smote_no_pca[, "YES"])
+} else {
+  NULL
+}
+qda_pred_smote_no_pca_class = if (!is.null(qda_smote_no_pca)) {
+  predict(qda_smote_no_pca, newdata = test_data, type = "raw")
+} else {
+  NULL
+}
+acc_qda_smote_no_pca = if (!is.null(qda_pred_smote_no_pca_class)) {
+  confusionMatrix(qda_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+} else {
+  NA
+}
+
+# No SMOTE, PCA
+set.seed(123)
+qda_no_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "qda",
+  trControl = ctrl_base, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+qda_pred_no_smote_pca = predict(qda_no_smote_pca, newdata = test_data, type = "prob")
+roc_qda_no_smote_pca = roc(test_data$stroke, qda_pred_no_smote_pca[, "YES"])
+qda_pred_no_smote_pca_class = predict(qda_no_smote_pca, newdata = test_data, type = "raw")
+acc_qda_no_smote_pca = confusionMatrix(qda_pred_no_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, PCA
+set.seed(123)
+qda_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "qda",
+  trControl = ctrl_smote, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+qda_pred_smote_pca = predict(qda_smote_pca, newdata = test_data, type = "prob")
+roc_qda_smote_pca = roc(test_data$stroke, qda_pred_smote_pca[, "YES"])
+qda_pred_smote_pca_class = predict(qda_smote_pca, newdata = test_data, type = "raw")
+acc_qda_smote_pca = confusionMatrix(qda_pred_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# Plot ROC curves (only for successful models)
+plot(roc_qda_no_smote_pca, col = "green", main = "ROC for QDA")
+lines(roc_qda_smote_pca, col = "purple")
+if (!is.null(roc_qda_no_smote_no_pca)) lines(roc_qda_no_smote_no_pca, col = "blue")
+if (!is.null(roc_qda_smote_no_pca)) lines(roc_qda_smote_no_pca, col = "red")
+legend("bottomright", 
+       legend = c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA")[c(!is.null(roc_qda_no_smote_no_pca), !is.null(roc_qda_smote_no_pca), TRUE, TRUE)], 
+       col = c("blue", "red", "green", "purple")[c(!is.null(roc_qda_no_smote_no_pca), !is.null(roc_qda_smote_no_pca), TRUE, TRUE)], 
+       lty = 1)
+
+```
+
+
+```{r}
+
+### K-Nearest Neighbors (KNN)
+
+# No SMOTE, No PCA
+set.seed(123)
+knn_no_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "knn",
+  trControl = ctrl_base, 
+  metric = "ROC"
+)
+knn_pred_no_smote_no_pca = predict(knn_no_smote_no_pca, newdata = test_data, type = "prob")
+roc_knn_no_smote_no_pca = roc(test_data$stroke, knn_pred_no_smote_no_pca[, "YES"])
+knn_pred_no_smote_no_pca_class = predict(knn_no_smote_no_pca, newdata = test_data, type = "raw")
+acc_knn_no_smote_no_pca = confusionMatrix(knn_pred_no_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, No PCA
+set.seed(123)
+knn_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "knn",
+  trControl = ctrl_smote, 
+  metric = "ROC"
+)
+knn_pred_smote_no_pca = predict(knn_smote_no_pca, newdata = test_data, type = "prob")
+roc_knn_smote_no_pca = roc(test_data$stroke, knn_pred_smote_no_pca[, "YES"])
+knn_pred_smote_no_pca_class = predict(knn_smote_no_pca, newdata = test_data, type = "raw")
+acc_knn_smote_no_pca = confusionMatrix(knn_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# No SMOTE, PCA
+set.seed(123)
+knn_no_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "knn",
+  trControl = ctrl_base, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+knn_pred_no_smote_pca = predict(knn_no_smote_pca, newdata = test_data, type = "prob")
+roc_knn_no_smote_pca = roc(test_data$stroke, knn_pred_no_smote_pca[, "YES"])
+knn_pred_no_smote_pca_class = predict(knn_no_smote_pca, newdata = test_data, type = "raw")
+acc_knn_no_smote_pca = confusionMatrix(knn_pred_no_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, PCA
+set.seed(123)
+knn_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "knn",
+  trControl = ctrl_smote, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+knn_pred_smote_pca = predict(knn_smote_pca, newdata = test_data, type = "prob")
+roc_knn_smote_pca = roc(test_data$stroke, knn_pred_smote_pca[, "YES"])
+knn_pred_smote_pca_class = predict(knn_smote_pca, newdata = test_data, type = "raw")
+acc_knn_smote_pca = confusionMatrix(knn_pred_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# Plot ROC curves
+plot(roc_knn_no_smote_no_pca, col = "blue", main = "ROC for KNN")
+lines(roc_knn_smote_no_pca, col = "red")
+lines(roc_knn_no_smote_pca, col = "green")
+lines(roc_knn_smote_pca, col = "purple")
+legend("bottomright", 
+       legend = c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA"), 
+       col = c("blue", "red", "green", "purple"), 
+       lty = 1)
+```
+
+```{r}
+library(gbm)        # For boosting (gbm)
+library(rpart)      # For decision trees
+library(ipred)      # For bagging
+library(tibble)     # For AUC data frame
+library(dplyr)      # For data manipulation
+library(knitr)      # For table formatting
+```
+
+```{r}
+#Decision Tree
+# No SMOTE, No PCA
+set.seed(123)
+dt_no_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "rpart",
+  trControl = ctrl_base, 
+  tuneLength = 5,  # Tune complexity parameter
+  metric = "ROC"
+)
+dt_pred_no_smote_no_pca_prob = predict(dt_no_smote_no_pca, newdata = test_data, type = "prob")
+dt_pred_no_smote_no_pca_class = predict(dt_no_smote_no_pca, newdata = test_data, type = "raw")
+roc_dt_no_smote_no_pca = roc(test_data$stroke, dt_pred_no_smote_no_pca_prob[,"YES"])
+acc_dt_no_smote_no_pca = confusionMatrix(dt_pred_no_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# SMOTE, No PCA
+set.seed(123)
+dt_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "rpart",
+  trControl = ctrl_smote, 
+  tuneLength = 5,
+  metric = "ROC"
+)
+dt_pred_smote_no_pca_prob = predict(dt_smote_no_pca, newdata = test_data, type = "prob")
+dt_pred_smote_no_pca_class = predict(dt_smote_no_pca, newdata = test_data, type = "raw")
+roc_dt_smote_no_pca = roc(test_data$stroke, dt_pred_smote_no_pca_prob[,"YES"])
+acc_dt_smote_no_pca = confusionMatrix(dt_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# No SMOTE, PCA
+set.seed(123)
+dt_no_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "rpart",
+  trControl = ctrl_base, 
+  preProcess = c("center", "scale", "pca"),
+  tuneLength = 5,
+  metric = "ROC"
+)
+dt_pred_no_smote_pca_prob = predict(dt_no_smote_pca, newdata = test_data, type = "prob")
+dt_pred_no_smote_pca_class = predict(dt_no_smote_pca, newdata = test_data, type = "raw")
+roc_dt_no_smote_pca = roc(test_data$stroke, dt_pred_no_smote_pca_prob[,"YES"])
+acc_dt_no_smote_pca = confusionMatrix(dt_pred_no_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# SMOTE, PCA
+set.seed(123)
+dt_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "rpart",
+  trControl = ctrl_smote, 
+  preProcess = c("center", "scale", "pca"),
+  tuneLength = 5,
+  metric = "ROC"
+)
+dt_pred_smote_pca_prob = predict(dt_smote_pca, newdata = test_data, type = "prob")
+dt_pred_smote_pca_class = predict(dt_smote_pca, newdata = test_data, type = "raw")
+roc_dt_smote_pca = roc(test_data$stroke, dt_pred_smote_pca_prob[,"YES"])
+acc_dt_smote_pca = confusionMatrix(dt_pred_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+
+# Plot ROC curves
+plot(roc_dt_no_smote_no_pca, col = "blue", main = "ROC for Decision Tree")
+lines(roc_dt_smote_no_pca, col = "red")
+lines(roc_dt_no_smote_pca, col = "green")
+lines(roc_dt_smote_pca, col = "purple")
+legend("bottomright", 
+       legend = c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA"), 
+       col = c("blue", "red", "green", "purple"), 
+       lty = 1)
+```
+
+```{r}
+#Random Forest
+# No SMOTE, No PCA
+set.seed(123)
+rf_no_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "rf",
+  trControl = ctrl_base, 
+  tuneLength = 3,  # Tune mtry
+  metric = "ROC"
+)
+rf_pred_no_smote_no_pca = predict(rf_no_smote_no_pca, newdata = test_data, type = "prob")
+roc_rf_no_smote_no_pca = roc(test_data$stroke, rf_pred_no_smote_no_pca[,"YES"])
+rf_pred_no_smote_no_pca_class = predict(rf_no_smote_no_pca, newdata = test_data, type = "raw")
+acc_rf_no_smote_no_pca = confusionMatrix(rf_pred_no_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, No PCA
+set.seed(123)
+rf_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "rf",
+  trControl = ctrl_smote, 
+  tuneLength = 3,
+  metric = "ROC"
+)
+rf_pred_smote_no_pca = predict(rf_smote_no_pca, newdata = test_data, type = "prob")
+roc_rf_smote_no_pca = roc(test_data$stroke, rf_pred_smote_no_pca[,"YES"])
+rf_pred_smote_no_pca_class = predict(rf_smote_no_pca, newdata = test_data, type = "raw")
+acc_rf_smote_no_pca = confusionMatrix(rf_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# No SMOTE, PCA
+set.seed(123)
+rf_no_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "rf",
+  trControl = ctrl_base, 
+  preProcess = c("center", "scale", "pca"),
+  tuneLength = 3,
+  metric = "ROC"
+)
+rf_pred_no_smote_pca = predict(rf_no_smote_pca, newdata = test_data, type = "prob")
+roc_rf_no_smote_pca = roc(test_data$stroke, rf_pred_no_smote_pca[,"YES"])
+rf_pred_no_smote_pca_class = predict(rf_no_smote_pca, newdata = test_data, type = "raw")
+acc_rf_no_smote_pca = confusionMatrix(rf_pred_no_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, PCA
+set.seed(123)
+rf_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "rf",
+  trControl = ctrl_smote, 
+  preProcess = c("center", "scale", "pca"),
+  tuneLength = 3,
+  metric = "ROC"
+)
+rf_pred_smote_pca = predict(rf_smote_pca, newdata = test_data, type = "prob")
+roc_rf_smote_pca = roc(test_data$stroke, rf_pred_smote_pca[,"YES"])
+rf_pred_smote_pca_class = predict(rf_smote_pca, newdata = test_data, type = "raw")
+acc_rf_smote_pca = confusionMatrix(rf_pred_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# Plot ROC curves
+plot(roc_rf_no_smote_no_pca, col = "blue", main = "ROC for Random Forest")
+lines(roc_rf_smote_no_pca, col = "red")
+lines(roc_rf_no_smote_pca, col = "green")
+lines(roc_rf_smote_pca, col = "purple")
+legend("bottomright", 
+       legend = c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA"), 
+       col = c("blue", "red", "green", "purple"), 
+       lty = 1)
+```
+
+```{r}
+#Bagging
+# No SMOTE, No PCA
+set.seed(123)
+bag_no_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "treebag",
+  trControl = ctrl_base, 
+  metric = "ROC"
+)
+bag_pred_no_smote_no_pca = predict(bag_no_smote_no_pca, newdata = test_data, type = "prob")
+roc_bag_no_smote_no_pca = roc(test_data$stroke, bag_pred_no_smote_no_pca[,"YES"])
+bag_pred_no_smote_no_pca_class = predict(bag_no_smote_no_pca, newdata = test_data, type = "raw")
+acc_bag_no_smote_no_pca = confusionMatrix(bag_pred_no_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, No PCA
+set.seed(123)
+bag_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "treebag",
+  trControl = ctrl_smote, 
+  metric = "ROC"
+)
+bag_pred_smote_no_pca = predict(bag_smote_no_pca, newdata = test_data, type = "prob")
+roc_bag_smote_no_pca = roc(test_data$stroke, bag_pred_smote_no_pca[,"YES"])
+bag_pred_smote_no_pca_class = predict(bag_smote_no_pca, newdata = test_data, type = "raw")
+acc_bag_smote_no_pca = confusionMatrix(bag_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# No SMOTE, PCA
+set.seed(123)
+bag_no_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "treebag",
+  trControl = ctrl_base, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+bag_pred_no_smote_pca = predict(bag_no_smote_pca, newdata = test_data, type = "prob")
+roc_bag_no_smote_pca = roc(test_data$stroke, bag_pred_no_smote_pca[,"YES"])
+bag_pred_no_smote_pca_class = predict(bag_no_smote_pca, newdata = test_data, type = "raw")
+acc_bag_no_smote_pca = confusionMatrix(bag_pred_no_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, PCA
+set.seed(123)
+bag_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "treebag",
+  trControl = ctrl_smote, 
+  preProcess = c("center", "scale", "pca"),
+  metric = "ROC"
+)
+bag_pred_smote_pca = predict(bag_smote_pca, newdata = test_data, type = "prob")
+roc_bag_smote_pca = roc(test_data$stroke, bag_pred_smote_pca[,"YES"])
+bag_pred_smote_pca_class = predict(bag_smote_pca, newdata = test_data, type = "raw")
+acc_bag_smote_pca = confusionMatrix(bag_pred_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# Plot ROC curves
+plot(roc_bag_no_smote_no_pca, col = "blue", main = "ROC for Bagging")
+lines(roc_bag_smote_no_pca, col = "red")
+lines(roc_bag_no_smote_pca, col = "green")
+lines(roc_bag_smote_pca, col = "purple")
+legend("bottomright", 
+       legend = c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA"), 
+       col = c("blue", "red", "green", "purple"), 
+       lty = 1)
+```
+
+```{r}
+#Boosting
+# No SMOTE, No PCA
+set.seed(123)
+boost_no_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "gbm",
+  trControl = ctrl_base, 
+  tuneLength = 3,  # Tune n.trees, interaction.depth, etc.
+  metric = "ROC",
+  verbose = FALSE
+)
+boost_pred_no_smote_no_pca = predict(boost_no_smote_no_pca, newdata = test_data, type = "prob")
+roc_boost_no_smote_no_pca = roc(test_data$stroke, boost_pred_no_smote_no_pca[,"YES"])
+boost_pred_no_smote_no_pca_class = predict(boost_no_smote_no_pca, newdata = test_data, type = "raw")
+acc_boost_no_smote_no_pca = confusionMatrix(boost_pred_no_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, No PCA
+set.seed(123)
+boost_smote_no_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "gbm",
+  trControl = ctrl_smote, 
+  tuneLength = 3,
+  metric = "ROC",
+  verbose = FALSE
+)
+boost_pred_smote_no_pca = predict(boost_smote_no_pca, newdata = test_data, type = "prob")
+roc_boost_smote_no_pca = roc(test_data$stroke, boost_pred_smote_no_pca[,"YES"])
+boost_pred_smote_no_pca_class = predict(boost_no_smote_no_pca, newdata = test_data, type = "raw")
+acc_boost_smote_no_pca = confusionMatrix(boost_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# No SMOTE, PCA
+set.seed(123)
+boost_no_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "gbm",
+  trControl = ctrl_base, 
+  preProcess = c("center", "scale", "pca"),
+  tuneLength = 3,
+  metric = "ROC",
+  verbose = FALSE
+)
+boost_pred_no_smote_pca = predict(boost_no_smote_pca, newdata = test_data, type = "prob")
+roc_boost_no_smote_pca = roc(test_data$stroke, boost_pred_no_smote_pca[,"YES"])
+boost_pred_no_smote_pca_class = predict(boost_no_smote_pca, newdata = test_data, type = "raw")
+acc_boost_no_smote_pca = confusionMatrix(boost_pred_no_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, PCA
+set.seed(123)
+boost_smote_pca = train(
+  stroke ~ ., 
+  data = train_data, 
+  method = "gbm",
+  trControl = ctrl_smote, 
+  preProcess = c("center", "scale", "pca"),
+  tuneLength = 3,
+  metric = "ROC",
+  verbose = FALSE
+)
+boost_pred_smote_pca = predict(boost_smote_pca, newdata = test_data, type = "prob")
+roc_boost_smote_pca = roc(test_data$stroke, boost_pred_smote_pca[,"YES"])
+boost_pred_smote_pca_class = predict(boost_smote_pca, newdata = test_data, type = "raw")
+acc_boost_smote_pca = confusionMatrix(boost_pred_smote_pca_class, test_data$stroke)$overall["Accuracy"]
+
+# Plot ROC curves
+plot(roc_boost_no_smote_no_pca, col = "blue", main = "ROC for Boosting")
+lines(roc_boost_smote_no_pca, col = "red")
+lines(roc_boost_no_smote_pca, col = "green")
+lines(roc_boost_smote_pca, col = "purple")
+legend("bottomright", 
+       legend = c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA"), 
+       col = c("blue", "red", "green", "purple"), 
+       lty = 1)
+```
+```{r}
+sens_logit_no_smote_no_pca = confusionMatrix(logit_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_logit_smote_no_pca = confusionMatrix(logit_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_logit_no_smote_pca = confusionMatrix(logit_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_logit_smote_pca = confusionMatrix(logit_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_lda_smote_pca = confusionMatrix(lda_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_lda_smote_pca = confusionMatrix(lda_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_qda_no_smote_no_pca = if (!is.null(qda_pred_no_smote_no_pca_class)) {
+  confusionMatrix(qda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+} else {
+  NA
+}
+sens_qda_smote_no_pca = if (!is.null(qda_pred_smote_no_pca_class)) {
+  confusionMatrix(qda_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+} else {
+  NA
+}
+sens_qda_no_smote_pca = confusionMatrix(qda_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_qda_smote_pca = confusionMatrix(qda_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_dt_no_smote_no_pca = confusionMatrix(dt_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_dt_smote_no_pca = confusionMatrix(dt_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_dt_no_smote_pca = confusionMatrix(dt_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_dt_smote_pca = confusionMatrix(dt_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_rf_no_smote_no_pca = confusionMatrix(rf_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_rf_smote_no_pca = confusionMatrix(rf_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_rf_no_smote_pca = confusionMatrix(rf_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_rf_smote_pca = confusionMatrix(rf_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_bag_no_smote_no_pca = confusionMatrix(bag_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_bag_smote_no_pca = confusionMatrix(bag_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_bag_no_smote_pca = confusionMatrix(bag_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_bag_smote_pca = confusionMatrix(bag_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_boost_no_smote_no_pca = confusionMatrix(boost_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_boost_smote_no_pca = confusionMatrix(boost_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_boost_no_smote_pca = confusionMatrix(boost_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_boost_smote_pca = confusionMatrix(boost_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_knn_no_smote_no_pca = confusionMatrix(knn_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_knn_smote_no_pca = confusionMatrix(knn_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_knn_no_smote_pca = confusionMatrix(knn_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+sens_knn_smote_pca = confusionMatrix(knn_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
+```
+```{r}
+spec_logit_no_smote_no_pca = confusionMatrix(logit_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_logit_smote_no_pca = confusionMatrix(logit_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_logit_no_smote_pca = confusionMatrix(logit_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_logit_smote_pca = confusionMatrix(logit_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_lda_smote_pca = confusionMatrix(lda_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_lda_smote_pca = confusionMatrix(lda_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_qda_no_smote_no_pca = if (!is.null(qda_pred_no_smote_no_pca_class)) {
+  confusionMatrix(qda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+} else {
+  NA
+}
+spec_qda_smote_no_pca = if (!is.null(qda_pred_smote_no_pca_class)) {
+  confusionMatrix(qda_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+} else {
+  NA
+}
+spec_qda_no_smote_pca = confusionMatrix(qda_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_qda_smote_pca = confusionMatrix(qda_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_dt_no_smote_no_pca = confusionMatrix(dt_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_dt_smote_no_pca = confusionMatrix(dt_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_dt_no_smote_pca = confusionMatrix(dt_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_dt_smote_pca = confusionMatrix(dt_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_rf_no_smote_no_pca = confusionMatrix(rf_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_rf_smote_no_pca = confusionMatrix(rf_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_rf_no_smote_pca = confusionMatrix(rf_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_rf_smote_pca = confusionMatrix(rf_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_bag_no_smote_no_pca = confusionMatrix(bag_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_bag_smote_no_pca = confusionMatrix(bag_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_bag_no_smote_pca = confusionMatrix(bag_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_bag_smote_pca = confusionMatrix(bag_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_boost_no_smote_no_pca = confusionMatrix(boost_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_boost_smote_no_pca = confusionMatrix(boost_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_boost_no_smote_pca = confusionMatrix(boost_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_boost_smote_pca = confusionMatrix(boost_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_knn_no_smote_no_pca = confusionMatrix(knn_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_knn_smote_no_pca = confusionMatrix(knn_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_knn_no_smote_pca = confusionMatrix(knn_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+spec_knn_smote_pca = confusionMatrix(knn_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
+```
+```{r}
+results_df = data.frame(
+  Model = rep(c("Logistic Regression", "LDA", "QDA", "Decision Tree", 
+                "Random Forest", "Bagging", "Boosting", "KNN"), each = 4),
+  Scenario = rep(c("No SMOTE No PCA", "SMOTE No PCA", "No SMOTE PCA", "SMOTE PCA"), 8),
+  AUC = c(
+    auc(roc_logit_no_smote_no_pca), auc(roc_logit_smote_no_pca), auc(roc_logit_no_smote_pca), auc(roc_logit_smote_pca),
+    auc(roc_lda_no_smote_no_pca), auc(roc_lda_smote_no_pca), auc(roc_lda_no_smote_pca), auc(roc_lda_smote_pca),
+    if (!is.null(roc_qda_no_smote_no_pca)) auc(roc_qda_no_smote_no_pca) else NA,
+    if (!is.null(roc_qda_smote_no_pca)) auc(roc_qda_smote_no_pca) else NA,
+    auc(roc_qda_no_smote_pca), auc(roc_qda_smote_pca),
+    auc(roc_dt_no_smote_no_pca), auc(roc_dt_smote_no_pca), auc(roc_dt_no_smote_pca), auc(roc_dt_smote_pca),
+    auc(roc_rf_no_smote_no_pca), auc(roc_rf_smote_no_pca), auc(roc_rf_no_smote_pca), auc(roc_rf_smote_pca),
+    auc(roc_bag_no_smote_no_pca), auc(roc_bag_smote_no_pca), auc(roc_bag_no_smote_pca), auc(roc_bag_smote_pca),
+    auc(roc_boost_no_smote_no_pca), auc(roc_boost_smote_no_pca), auc(roc_boost_no_smote_pca), auc(roc_boost_smote_pca),
+    auc(roc_knn_no_smote_no_pca), auc(roc_knn_smote_no_pca), auc(roc_knn_no_smote_pca), auc(roc_knn_smote_pca)
+  ),
+  Accuracy = c(
+    acc_logit_no_smote_no_pca, acc_logit_smote_no_pca, acc_logit_no_smote_pca, acc_logit_smote_pca,
+    acc_lda_no_smote_no_pca, acc_lda_smote_no_pca, acc_lda_no_smote_pca, acc_lda_smote_pca,
+    acc_qda_no_smote_no_pca, acc_qda_smote_no_pca, acc_qda_no_smote_pca, acc_qda_smote_pca,
+    acc_dt_no_smote_no_pca, acc_dt_smote_no_pca, acc_dt_no_smote_pca, acc_dt_smote_pca,
+    acc_rf_no_smote_no_pca, acc_rf_smote_no_pca, acc_rf_no_smote_pca, acc_rf_smote_pca,
+    acc_bag_no_smote_no_pca, acc_bag_smote_no_pca, acc_bag_no_smote_pca, acc_bag_smote_pca,
+    acc_boost_no_smote_no_pca, acc_boost_smote_no_pca, acc_boost_no_smote_pca, acc_boost_smote_pca,
+    acc_knn_no_smote_no_pca, acc_knn_smote_no_pca, acc_knn_no_smote_pca, acc_knn_smote_pca
+  ),
+  Sensitivity = c(
+    sens_logit_no_smote_no_pca, sens_logit_smote_no_pca, sens_logit_no_smote_pca, sens_logit_smote_pca,
+    sens_lda_no_smote_no_pca, sens_lda_smote_no_pca, sens_lda_no_smote_pca, sens_lda_smote_pca,
+    sens_qda_no_smote_no_pca, sens_qda_smote_no_pca, sens_qda_no_smote_pca, sens_qda_smote_pca,
+    sens_dt_no_smote_no_pca, sens_dt_smote_no_pca, sens_dt_no_smote_pca, sens_dt_smote_pca,
+    sens_rf_no_smote_no_pca, sens_rf_smote_no_pca, sens_rf_no_smote_pca, sens_rf_smote_pca,
+    sens_bag_no_smote_no_pca, sens_bag_smote_no_pca, sens_bag_no_smote_pca, sens_bag_smote_pca,
+    sens_boost_no_smote_no_pca, sens_boost_smote_no_pca, sens_boost_no_smote_pca, sens_boost_smote_pca,
+    sens_knn_no_smote_no_pca, sens_knn_smote_no_pca, sens_knn_no_smote_pca, sens_knn_smote_pca
+  ),
+  Specificity = c(
+    spec_logit_no_smote_no_pca, spec_logit_smote_no_pca, spec_logit_no_smote_pca, spec_logit_smote_pca,
+    spec_lda_no_smote_no_pca, spec_lda_smote_no_pca, spec_lda_no_smote_pca, spec_lda_smote_pca,
+    spec_qda_no_smote_no_pca, spec_qda_smote_no_pca, spec_qda_no_smote_pca, spec_qda_smote_pca,
+    spec_dt_no_smote_no_pca, spec_dt_smote_no_pca, spec_dt_no_smote_pca, spec_dt_smote_pca,
+    spec_rf_no_smote_no_pca, spec_rf_smote_no_pca, spec_rf_no_smote_pca, spec_rf_smote_pca,
+    spec_bag_no_smote_no_pca, spec_bag_smote_no_pca, spec_bag_no_smote_pca, spec_bag_smote_pca,
+    spec_boost_no_smote_no_pca, spec_boost_smote_no_pca, spec_boost_no_smote_pca, spec_boost_smote_pca,
+    spec_knn_no_smote_no_pca, spec_knn_smote_no_pca, spec_knn_no_smote_pca, spec_knn_smote_pca
+  )
+) %>%
+  filter(!is.na(AUC) & !is.na(Accuracy) & !is.na(Specificity))
+
+kable(results_df, caption = "AUC, Accuracy,Sensitivity, and Specificity for Each Model and Scenario (NA Removed)", digits = 4)
+```
+
+
+```{r}
+results_df$Scenario = factor(results_df$Scenario, 
+                             levels = c("No SMOTE No PCA", "SMOTE No PCA", 
+                                        "No SMOTE PCA", "SMOTE PCA"))
+
+ggplot(results_df, aes(x = Model, y = Sensitivity, fill = Scenario)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.45)) +
+  labs(title = "Sensitivity Comparison Across Models and Scenarios (NA Removed)",
+       x = "Model",
+       y = "Sensitivity") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1")
+```
+
+```{r}
+results_df$Scenario = factor(results_df$Scenario, 
+                             levels = c("No SMOTE No PCA", "SMOTE No PCA", 
+                                        "No SMOTE PCA", "SMOTE PCA"))
+
+ggplot(results_df, aes(x = Model, y = Specificity, fill = Scenario)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.45)) +
+  labs(title = "Specificity Comparison Across Models and Scenarios (NA Removed)",
+       x = "Model",
+       y = "Specificity") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1")
+```
+
+Because the QDA model fails to fit in every fold due to the rank deficiency issue, no predictions are produced. Without predictions, the performance metrics (like ROC) cannot be computed, leading to the "missing values" warning.
+
+```{r}
+# Convert Scenario to factor for consistent ordering
+results_df$Scenario = factor(results_df$Scenario, 
+                         levels = c("No SMOTE No PCA", "SMOTE No PCA", 
+                                    "No SMOTE PCA", "SMOTE PCA"))
+
+# Create grouped bar plot
+ggplot(results_df, aes(x = Model, y = AUC, fill = Scenario)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  labs(title = "AUC Comparison Across Models and Scenarios (NA Removed)",
+       x = "Model",
+       y = "AUC") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1")
+```
+
+
+```{r}
+# Accuracy Plot
+ggplot(results_df, aes(x = Model, y = Accuracy, fill = Scenario)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.45)) +
+  labs(title = "Accuracy Comparison Across Models and Scenarios (NA Removed)",
+       x = "Model",
+       y = "Accuracy") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_brewer(palette = "Set1")
+```
