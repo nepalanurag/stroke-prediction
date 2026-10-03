@@ -1,5 +1,5 @@
 ---
-title: "448_Project_Stroke_Data"
+title: "Stroke Prediction"
 author: "Anurag Nepal"
 date: "2025-03-16"
 output:
@@ -855,7 +855,7 @@ boost_smote_no_pca = train(
 )
 boost_pred_smote_no_pca = predict(boost_smote_no_pca, newdata = test_data, type = "prob")
 roc_boost_smote_no_pca = roc(test_data$stroke, boost_pred_smote_no_pca[,"YES"])
-boost_pred_smote_no_pca_class = predict(boost_no_smote_no_pca, newdata = test_data, type = "raw")
+boost_pred_smote_no_pca_class = predict(boost_smote_no_pca, newdata = test_data, type = "raw")
 acc_boost_smote_no_pca = confusionMatrix(boost_pred_smote_no_pca_class, test_data$stroke)$overall["Accuracy"]
 
 # No SMOTE, PCA
@@ -911,10 +911,6 @@ sens_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_
 sens_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
 sens_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
 sens_lda_smote_pca = confusionMatrix(lda_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
-sens_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
-sens_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
-sens_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
-sens_lda_smote_pca = confusionMatrix(lda_pred_smote_pca_class, test_data$stroke)$byClass["Sensitivity"]
 sens_qda_no_smote_no_pca = if (!is.null(qda_pred_no_smote_no_pca_class)) {
   confusionMatrix(qda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
 } else {
@@ -953,10 +949,6 @@ spec_logit_no_smote_no_pca = confusionMatrix(logit_pred_no_smote_no_pca_class, t
 spec_logit_smote_no_pca = confusionMatrix(logit_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
 spec_logit_no_smote_pca = confusionMatrix(logit_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
 spec_logit_smote_pca = confusionMatrix(logit_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
-spec_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
-spec_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
-spec_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
-spec_lda_smote_pca = confusionMatrix(lda_pred_smote_pca_class, test_data$stroke)$byClass["Specificity"]
 spec_lda_no_smote_no_pca = confusionMatrix(lda_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
 spec_lda_smote_no_pca = confusionMatrix(lda_pred_smote_no_pca_class, test_data$stroke)$byClass["Specificity"]
 spec_lda_no_smote_pca = confusionMatrix(lda_pred_no_smote_pca_class, test_data$stroke)$byClass["Specificity"]
