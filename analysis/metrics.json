@@ -1,0 +1,68 @@
+{
+  "seed": 42,
+  "n_train": 4088,
+  "n_test": 1022,
+  "test_positive_rate": 0.04892367906066536,
+  "models": {
+    "logistic": {
+      "auc": 0.8416666666666667,
+      "brier": 0.04063336022416094
+    },
+    "random_forest": {
+      "auc": 0.7893106995884773,
+      "brier": 0.04586638399652098
+    },
+    "grad_boosting": {
+      "auc": 0.8275514403292181,
+      "brier": 0.045692041851871854
+    }
+  },
+  "threshold_analysis": {
+    "model": "logistic",
+    "at_0.5": {
+      "threshold": 0.49999999999999994,
+      "precision": 1.0,
+      "recall": 0.02,
+      "f1": 0.0392156862745098,
+      "youden": 0.02
+    },
+    "best_f1": {
+      "threshold": 0.125,
+      "f1": 0.3473684210526316,
+      "precision": 0.2357142857142857,
+      "recall": 0.66
+    },
+    "youden_j": {
+      "threshold": 0.075,
+      "j": 0.575843621399177,
+      "precision": 0.17511520737327188,
+      "recall": 0.76
+    }
+  },
+  "permutation_importance_rf": {
+    "age": 0.16475823045267485,
+    "avg_glucose_level": 0.014850823045267459,
+    "smoking_status": 0.0057952674897119305,
+    "hypertension": 0.003133744855967069,
+    "heart_disease": 0.002871399176954692,
+    "gender": 0.002697530864197506,
+    "bmi": -0.0007644032921810928,
+    "Residence_type": -0.002946502057613198,
+    "ever_married": -0.007983539094650226,
+    "work_type": -0.010699588477366273
+  },
+  "logistic_top_coefs": {
+    "age": 1.634388575682523,
+    "work_type_Self-employed": -0.19462543520009437,
+    "avg_glucose_level": 0.1785774664723195,
+    "smoking_status_smokes": 0.1566897190270202,
+    "smoking_status_never smoked": -0.15360839897258688,
+    "ever_married_Yes": -0.14516136677542807,
+    "work_type_children": 0.14017633558229559,
+    "hypertension": 0.13802799699738869,
+    "ever_married_No": 0.1275542893881594,
+    "work_type_Private": 0.07996571543573568,
+    "work_type_Never_worked": -0.07581659402696232,
+    "smoking_status_Unknown": -0.07391718050384576
+  }
+}
