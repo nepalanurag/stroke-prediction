@@ -9,9 +9,20 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
 library(tidyverse)
 library(ggplot2)
 ```
+
+# Background
+
+I wanted to see how well stroke occurrence can be predicted from patient demographics and health indicators, and which modeling choices matter for a rare event. The plan: compare eight classifiers across four preprocessing scenarios, with and without SMOTE for the class imbalance and with and without PCA, and judge each on AUC, accuracy, sensitivity, and specificity.
+
+# Setup
+
+The data is `healthcare-dataset-stroke-data.csv`, in this repo. One row per patient: age, gender, hypertension, heart disease, marital and work status, residence type, glucose level, BMI, smoking status, and the stroke indicator. Only about 5% of rows are strokes, so the imbalance drives most of the modeling decisions below.
+
+## Exploratory analysis
 
 ```{r}
 stroke_data = read.csv("healthcare-dataset-stroke-data.csv")
@@ -195,6 +206,12 @@ print(cor_matrix)
 
 
 
+# Method
+
+Eight models, four scenarios each: logistic regression, LDA, QDA, KNN, decision tree, random forest, bagging, and boosting. Every model trains under 5-fold cross-validation optimizing ROC, then gets scored on a held-out 30% test split. The four scenarios cross SMOTE (yes/no) with PCA (yes/no).
+
+## Training controls
+
 ```{r}
 library(caret)
 library(pROC)
@@ -225,9 +242,7 @@ prop.table(table(train_data$stroke))
 prop.table(table(test_data$stroke))
 ```
 
-## Define Training Controls
-
-We'll define two `trainControl` objects for 5-fold cross-validation: one without SMOTE and one with SMOTE for class balancing. We'll use these across all models and scenarios.
+Two control objects carry the design. We'll define two `trainControl` objects for 5-fold cross-validation: one without SMOTE and one with SMOTE for class balancing. We'll use these across all models and scenarios.
 
 ```{r train-controls}
 # Without SMOTE
@@ -256,7 +271,11 @@ For each model (Logistic Regression, LDA, QDA, KNN), we'll train under four scen
 4. **SMOTE, PCA**
 
 
-### Logistic Regression
+## The models
+
+I start with the linear classifiers.
+
+### Logistic regression
 
 ```{r}
 # No SMOTE, No PCA
@@ -334,8 +353,9 @@ legend("bottomright",
        lty = 1)
 ```
 
+### Linear discriminant analysis
+
 ```{r}
-### Linear Discriminant Analysis (LDA)
 # No SMOTE, No PCA
 set.seed(123)
 lda_no_smote_no_pca = train(
@@ -407,8 +427,9 @@ legend("bottomright",
        lty = 1)
 ```
 
+### Quadratic discriminant analysis
+
 ```{r}
-### Quadratic Discriminant Analysis (QDA)
 
 # No SMOTE, No PCA
 set.seed(123)
@@ -517,9 +538,9 @@ legend("bottomright",
 ```
 
 
-```{r}
+### K-nearest neighbors
 
-### K-Nearest Neighbors (KNN)
+```{r}
 
 # No SMOTE, No PCA
 set.seed(123)
@@ -598,6 +619,10 @@ library(tibble)     # For AUC data frame
 library(dplyr)      # For data manipulation
 library(knitr)      # For table formatting
 ```
+
+The remaining four are tree-based: a single decision tree, random forest, bagging, and boosting.
+
+### Decision tree
 
 ```{r}
 #Decision Tree
@@ -678,6 +703,8 @@ legend("bottomright",
        lty = 1)
 ```
 
+### Random forest
+
 ```{r}
 #Random Forest
 # No SMOTE, No PCA
@@ -753,6 +780,8 @@ legend("bottomright",
        lty = 1)
 ```
 
+### Bagging
+
 ```{r}
 #Bagging
 # No SMOTE, No PCA
@@ -823,6 +852,8 @@ legend("bottomright",
        col = c("blue", "red", "green", "purple"), 
        lty = 1)
 ```
+
+### Boosting
 
 ```{r}
 #Boosting
@@ -902,6 +933,10 @@ legend("bottomright",
        col = c("blue", "red", "green", "purple"), 
        lty = 1)
 ```
+# Results
+
+Every model-scenario pair is scored on the test set: AUC from the ROC curve, plus accuracy, sensitivity, and specificity from the confusion matrix. The table collects all four metrics; the bar plots after it make the trade-offs visual. QDA rows with failed fits are dropped.
+
 ```{r}
 sens_logit_no_smote_no_pca = confusionMatrix(logit_pred_no_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
 sens_logit_smote_no_pca = confusionMatrix(logit_pred_smote_no_pca_class, test_data$stroke)$byClass["Sensitivity"]
@@ -1101,3 +1136,7 @@ ggplot(results_df, aes(x = Model, y = Accuracy, fill = Scenario)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_fill_brewer(palette = "Set1")
 ```
+
+# Takeaway
+
+With only about 5% strokes in the data, accuracy alone misleads, which is why every model is judged on AUC, sensitivity, and specificity together. The four scenarios exist to price the two big choices: SMOTE rebalances the classes, PCA compresses the features, and the table shows what each costs per model. QDA could not fit in some folds because of rank deficiency, so those rows are out of the comparison. Read the table per metric, because the ranking moves with the metric, which is the honest answer for a rare-event problem like this.
