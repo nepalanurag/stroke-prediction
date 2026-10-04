@@ -9,6 +9,7 @@ Data: healthcare-dataset-stroke-data.csv (5,110 rows, 249 strokes, 4.9% positive
 All numbers below are computed on a held-out 20% test split (seed 42).
 """
 import json
+import os
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -27,7 +28,10 @@ from sklearn.metrics import (roc_auc_score, brier_score_loss, precision_recall_c
 from sklearn.inspection import permutation_importance
 
 SEED = 42
-df = pd.read_csv("/home/hatch/workspace/expand-work/stroke.csv")
+# repo-root-relative paths so the script runs from a fresh checkout
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)  # analysis/ -> repo root
+df = pd.read_csv(os.path.join(ROOT, "healthcare-dataset-stroke-data.csv"))
 df = df.drop(columns=["id"])
 y = df["stroke"].values
 X = df.drop(columns=["stroke"])
@@ -75,7 +79,7 @@ ax.set_ylabel("fraction of positives")
 ax.set_title("Calibration curves (held-out test set)")
 ax.legend(fontsize=9)
 fig.tight_layout()
-fig.savefig("/home/hatch/workspace/expand-work/figs/stroke_calibration.png", dpi=110)
+fig.savefig(os.path.join(ROOT, "docs", "figs", "stroke_calibration.png"), dpi=110)
 plt.close(fig)
 
 # 2. Threshold sweep on the best-AUC model
@@ -114,7 +118,7 @@ ax.set_ylabel("score")
 ax.set_title(f"Threshold trade-off ({best}, held-out test)")
 ax.legend(fontsize=9)
 fig.tight_layout()
-fig.savefig("/home/hatch/workspace/expand-work/figs/stroke_threshold.png", dpi=110)
+fig.savefig(os.path.join(ROOT, "docs", "figs", "stroke_threshold.png"), dpi=110)
 plt.close(fig)
 
 # 3. Feature importance: permutation importance on the RF pipeline + logistic coefs
@@ -142,9 +146,9 @@ coefs.head(12)[::-1].plot.barh(ax=axes[1])
 axes[1].set_title("Logistic regression coefficients (top |coef|)")
 axes[1].set_xlabel("coefficient")
 fig.tight_layout()
-fig.savefig("/home/hatch/workspace/expand-work/figs/stroke_importance.png", dpi=110)
+fig.savefig(os.path.join(ROOT, "docs", "figs", "stroke_importance.png"), dpi=110)
 plt.close(fig)
 
-with open("/home/hatch/workspace/expand-work/stroke_metrics.json", "w") as f:
+with open(os.path.join(HERE, "metrics.json"), "w") as f:
     json.dump(out, f, indent=2)
 print(json.dumps(out, indent=2)[:2500])
