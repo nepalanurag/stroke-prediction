@@ -1,4 +1,4 @@
-"""Expansion analysis for the stroke-prediction project.
+"""Deeper analysis for the stroke-prediction project.
 
 New questions the original 8-model bake-off did not answer:
 1. Are the predicted probabilities calibrated? (calibration curves + Brier score)
