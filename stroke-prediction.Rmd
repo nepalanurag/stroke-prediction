@@ -83,11 +83,15 @@ colnames(avg_bmi_by_group) = c("age_group","gender","avg_bmi")
 avg_bmi_by_group
 ```
 ```{r}
+# Keep the pre-imputation values. The group means above are computed on the
+# full dataset, so this fill is for the EDA plots only. The modeling section
+# redoes the imputation leakage-free (means from the training split only).
+stroke_data$bmi_raw = stroke_data$bmi
 stroke_data = merge(stroke_data, avg_bmi_by_group, by = c("age_group", "gender"), all.x = TRUE)
 stroke_data$bmi = ifelse(is.na(stroke_data$bmi), stroke_data$avg_bmi, stroke_data$bmi)
 stroke_data$avg_bmi = NULL
 ```
-Used the average bmi for  the age group and gender to fill in the bmi NA values.
+Used the average bmi for the age group and gender to fill in the bmi NA values for the exploratory plots below. Before modeling, the imputation is redone with group means from the training split only, so no test information leaks into training.
 
 ```{r}
 boxplot(age ~ stroke, data = stroke_data, main = "Age by Stroke Status", col = "skyblue")
@@ -218,8 +222,11 @@ library(pROC)
 ```
 
 ```{r}
+# Stash the pre-imputation BMI and grouping columns for the leakage-free
+# imputation below: they are dropped from the modeling data in the next chunk.
+bmi_lookup = stroke_data[, c("age_group", "gender", "bmi_raw")]
 stroke_data = stroke_data %>%
-  select(-id, -age_group,-Residence_type,-gender) %>%
+  select(-id, -age_group,-Residence_type,-gender, -bmi_raw) %>%
   mutate(
     ever_married = as.factor(ever_married),
     work_type = as.factor(work_type),
@@ -240,6 +247,30 @@ train_data = stroke_data[trainIndex, ]
 test_data = stroke_data[-trainIndex, ]
 prop.table(table(train_data$stroke))
 prop.table(table(test_data$stroke))
+```
+
+```{r leakfree-bmi}
+# Leakage-free BMI imputation. The EDA fill used group means computed on the
+# full dataset, which lets test information leak into the training rows. Redo
+# it here: group means come from the training split only, then overwrite bmi
+# in both splits. Row order matches trainIndex, so the lookup aligns exactly.
+train_lookup = bmi_lookup[trainIndex, ]
+test_lookup = bmi_lookup[-trainIndex, ]
+train_bmi_means = aggregate(bmi_raw ~ age_group + gender, data = train_lookup,
+                            FUN = function(x) mean(x, na.rm = TRUE))
+colnames(train_bmi_means) = c("age_group", "gender", "avg_bmi")
+overall_bmi = mean(train_lookup$bmi_raw, na.rm = TRUE)
+train_bmi_means$avg_bmi[is.nan(train_bmi_means$avg_bmi)] = overall_bmi
+fill_bmi = function(lookup) {
+  key_l = paste(lookup$age_group, lookup$gender)
+  key_m = paste(train_bmi_means$age_group, train_bmi_means$gender)
+  fill = train_bmi_means$avg_bmi[match(key_l, key_m)]
+  fill[is.na(fill)] = overall_bmi
+  ifelse(is.na(lookup$bmi_raw), fill, lookup$bmi_raw)
+}
+train_data$bmi = fill_bmi(train_lookup)
+test_data$bmi = fill_bmi(test_lookup)
+stopifnot(sum(is.na(train_data$bmi)) == 0, sum(is.na(test_data$bmi)) == 0)
 ```
 
 Two control objects carry the design. We'll define two `trainControl` objects for 5-fold cross-validation: one without SMOTE and one with SMOTE for class balancing. We'll use these across all models and scenarios.

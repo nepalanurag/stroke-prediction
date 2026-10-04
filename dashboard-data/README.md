@@ -1,9 +1,12 @@
 # Dashboard data: Stroke Prediction
 
-Results from `stroke-prediction.Rmd`. Values are transcribed from the rendered
-PDF, the archived output of the completed analysis. Eight models x four
-scenarios (SMOTE yes/no crossed with PCA yes/no), tuned with 5-fold CV on ROC
-and scored on a held-out 30% test split.
+Results from `stroke-prediction.Rmd`, re-run end to end after fixing a data
+leakage issue (October 2026): BMI group-mean imputation previously used means
+computed on the full dataset before the train/test split; it now uses
+training-split means only. Eight models x four scenarios (SMOTE yes/no
+crossed with PCA yes/no), tuned with 5-fold CV on ROC and scored on a held-out
+30% test split. Metric moves from the fix were small (AUC within 0.03 for all
+models); the headline below is unchanged.
 
 ## Files
 
