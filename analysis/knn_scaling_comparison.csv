@@ -1,0 +1,5 @@
+"run","k","test_AUC","test_accuracy"
+"no SMOTE, no PCA (original)",9,0.744,0.9517
+"SMOTE, no PCA (original)",9,0.7734,0.7931
+"no SMOTE, no PCA + center/scale (new)",9,0.6968,0.9504
+"SMOTE, no PCA + center/scale (new)",9,0.7142,0.8544

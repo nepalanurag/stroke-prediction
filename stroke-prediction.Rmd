@@ -1171,3 +1171,48 @@ ggplot(results_df, aes(x = Model, y = Accuracy, fill = Scenario)) +
 # Takeaway
 
 With only about 5% strokes in the data, accuracy alone misleads, which is why every model is judged on AUC, sensitivity, and specificity together. The four scenarios exist to price the two big choices: SMOTE rebalances the classes, PCA compresses the features, and the table shows what each costs per model. QDA could not fit in some folds because of rank deficiency, so those rows are out of the comparison. Read the table per metric, because the ranking moves with the metric, which is the honest answer for a rare-event problem like this.
+
+# Follow-up: protocol-consistent KNN runs
+
+In the bake-off above, KNN runs without scaling in the two no-PCA scenarios while the PCA scenarios get center/scale. That confounds the PCA comparison for KNN: in the no-PCA runs the distances are dominated by age and glucose, while the PCA runs see standardized features. As a follow-up robustness check I re-ran the two no-PCA KNN models with `preProcess = c("center", "scale")` and report them next to the original runs. The original runs stand as reported; this puts the PCA comparison for KNN on equal footing.
+
+```{r knn-scaled-followup}
+# No SMOTE, No PCA, center/scale (protocol-consistent version of knn_no_smote_no_pca)
+set.seed(123)
+knn_no_smote_no_pca_scaled = train(
+  stroke ~ .,
+  data = train_data,
+  method = "knn",
+  trControl = ctrl_base,
+  preProcess = c("center", "scale"),
+  metric = "ROC"
+)
+knn_pred_no_smote_no_pca_scaled = predict(knn_no_smote_no_pca_scaled, newdata = test_data, type = "prob")
+roc_knn_no_smote_no_pca_scaled = roc(test_data$stroke, knn_pred_no_smote_no_pca_scaled[, "YES"])
+knn_pred_no_smote_no_pca_scaled_class = predict(knn_no_smote_no_pca_scaled, newdata = test_data, type = "raw")
+acc_knn_no_smote_no_pca_scaled = confusionMatrix(knn_pred_no_smote_no_pca_scaled_class, test_data$stroke)$overall["Accuracy"]
+
+# SMOTE, No PCA, center/scale (protocol-consistent version of knn_smote_no_pca)
+set.seed(123)
+knn_smote_no_pca_scaled = train(
+  stroke ~ .,
+  data = train_data,
+  method = "knn",
+  trControl = ctrl_smote,
+  preProcess = c("center", "scale"),
+  metric = "ROC"
+)
+knn_pred_smote_no_pca_scaled = predict(knn_smote_no_pca_scaled, newdata = test_data, type = "prob")
+roc_knn_smote_no_pca_scaled = roc(test_data$stroke, knn_pred_smote_no_pca_scaled[, "YES"])
+knn_pred_smote_no_pca_scaled_class = predict(knn_smote_no_pca_scaled, newdata = test_data, type = "raw")
+acc_knn_smote_no_pca_scaled = confusionMatrix(knn_pred_smote_no_pca_scaled_class, test_data$stroke)$overall["Accuracy"]
+```
+
+The comparison table below is produced by `analysis/knn_scaling_followup.R`, which mirrors this Rmd's data prep exactly (70/30 split, seed 123, leakage-free BMI imputation) and runs the original plus scaled KNN fits, so the numbers can be refreshed without re-knitting the whole document:
+
+```{r knn-scaling-table}
+knn_comp = read.csv("analysis/knn_scaling_comparison.csv")
+knitr::kable(knn_comp, caption = "KNN test performance: original runs vs protocol-consistent scaled runs")
+```
+
+On this test split the scaled runs score lower on AUC than their unscaled counterparts: 0.697 vs 0.744 without SMOTE and 0.714 vs 0.773 with SMOTE. The comparison is descriptive, not a verdict on the original runs: it shows that for KNN on this data, standardizing the features changes the distance geometry in a way that costs discrimination, which is exactly the kind of preprocessing sensitivity the scenario design is meant to surface. The PCA scenarios already had center/scale baked in, so with these two runs the KNN block of the bake-off is now complete on both scales.
