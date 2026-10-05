@@ -1545,6 +1545,33 @@ rank deficiency, so those rows are out of the comparison. Read the table
 per metric, because the ranking moves with the metric, which is the
 honest answer for a rare-event problem like this.</p>
 </div>
+<div id="followup" class="section level1">
+<h2>Follow-up robustness checks</h2>
+<p>Two protocol extensions run after the main bake-off. The original results are untouched; these sit alongside them.</p>
+<div id="followup-knn" class="section level2">
+<h3>Scaled KNN runs</h3>
+<p>The main bake-off ran KNN without scaling in the non-PCA scenarios, while the PCA scenarios got centered and scaled inputs. This follow-up adds the protocol-consistent runs (<code>preProcess = c("center", "scale")</code>) on the same 70/30 split and seed, from <code>analysis/knn_scaling_followup.R</code>:</p>
+<table>
+<tr><th>Run</th><th>k</th><th>Test AUC</th><th>Test accuracy</th></tr>
+<tr><td>No SMOTE, no PCA (original)</td><td>9</td><td>0.744</td><td>0.952</td></tr>
+<tr><td>SMOTE, no PCA (original)</td><td>9</td><td>0.773</td><td>0.793</td></tr>
+<tr><td>No SMOTE, no PCA + center/scale (new)</td><td>9</td><td>0.697</td><td>0.950</td></tr>
+<tr><td>SMOTE, no PCA + center/scale (new)</td><td>9</td><td>0.714</td><td>0.854</td></tr>
+</table>
+<p>Standardizing costs discrimination here: scaled AUC sits below the original in both runs. The KNN block is now complete on both scales, and the comparison is descriptive, not a correction.</p>
+</div>
+<div id="followup-threshold" class="section level2">
+<h3>Threshold selection on a validation split</h3>
+<p>The main analysis tuned the F1 threshold on the test set. This follow-up moves selection to a validation split (60/20/20, seed 42): validation picks 0.15, reported once on the locked test set.</p>
+<table>
+<tr><th>Threshold</th><th>Precision</th><th>Recall</th><th>F1</th></tr>
+<tr><td>0.15 (validation-picked, locked test)</td><td>0.18</td><td>0.42</td><td>0.256</td></tr>
+<tr><td>0.50 (default)</td><td>1.00</td><td>0.04</td><td>0.077</td></tr>
+</table>
+<div class="plot"><img class="fig" src="figs/stroke_threshold_validation.png" alt="Threshold selection under a validation protocol"></div>
+<p>Still well above the 0.5 default, and lower than the test-tuned value, which is expected once selection cannot peek at the test set. Script: <code>analysis/threshold_validation_protocol.py</code> in the repo.</p>
+</div>
+</div>
 
 
 
