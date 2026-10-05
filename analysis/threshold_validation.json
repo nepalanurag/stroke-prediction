@@ -1,0 +1,38 @@
+{
+  "protocol": "60/20/20 train/validation/test, seed 42, stratified; threshold tuned on validation only, reported once on locked test",
+  "seed": 42,
+  "n_train": 3066,
+  "n_val": 1022,
+  "n_test": 1022,
+  "chosen_threshold": 0.15,
+  "validation_best": {
+    "threshold": 0.15,
+    "precision": 0.2032520325203252,
+    "recall": 0.5,
+    "f1": 0.28901734104046245,
+    "tp": 25,
+    "fp": 98,
+    "fn": 25,
+    "tn": 874
+  },
+  "test_at_chosen": {
+    "threshold": 0.15,
+    "precision": 0.18421052631578946,
+    "recall": 0.42,
+    "f1": 0.25609756097560976,
+    "tp": 21,
+    "fp": 93,
+    "fn": 29,
+    "tn": 879
+  },
+  "test_at_0.5": {
+    "threshold": 0.5,
+    "precision": 1.0,
+    "recall": 0.04,
+    "f1": 0.07692307692307693,
+    "tp": 2,
+    "fp": 0,
+    "fn": 48,
+    "tn": 972
+  }
+}
